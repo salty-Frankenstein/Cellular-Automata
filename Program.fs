@@ -29,19 +29,10 @@ let PrintMachine (m:Matrix) =       //输出一个元胞自动机状态
     let length1 = int(m.GetLongLength 1)
     for i = 0 to length0-1 do
         for j = 0 to length1-1 do
-            if (fst m.[i,j]) = 0 then printf " "
-            else printf "#"
+            match fst m.[i,j] with
+            |0 -> printf " "
+            |_ -> printf "#"
         printf "\n"
-
-
-let GetMatrix (x,y) (m:Matrix) =    //(int,int) -> Matrix -> Matrix 从矩阵m中取以(x,y)为中心的3*3子矩阵，不足截去
-    let length0 = int(m.GetLongLength 0)
-    let length1 = int(m.GetLongLength 0)
-    let up = max (x-1) 0
-    let down = min (x+1) (length0-1)
-    let left = max (y-1) 0
-    let right = min (y+1) (length1-1)
-    m.[up..down,left..right]
 
 
 let GetMatrix3 (x,y) (m:Matrix) =   //(int,int) -> Matrix -> Matrix 从矩阵m中取以(x,y)为中心的3*3子矩阵，不足补0
@@ -80,7 +71,7 @@ let GetNext ori =  //Elem -> Elem 由一个周围数之和得到中心元素的�
 
 
 let NextState (m:Matrix) = 
-    Array2D.map GetNext (m |> InitMatrix)
+    m |> InitMatrix |> Array2D.map GetNext
 
 
 let CreateNum (r:Random) x y  = //Random -> int -> int -> Elem 随机生成fst为布尔量的Elem
