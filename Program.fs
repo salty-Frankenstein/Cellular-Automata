@@ -9,14 +9,18 @@ open System.Drawing
 let readInt()=int (Console.ReadLine())
 let pause()=Console.ReadLine()
 
-type Matrix = int [,]   //Matrix类型为int二维数组
+type Elem = int*int         //定义元素Elem类型为二元组(现在状态,周围之和)
+type Matrix = Elem [,]      //Matrix类型为Elem二维数组
 
-let PrintMatrix (m:Matrix) =     
+
+let PrintMatrix (m:Matrix) x =     
     let length0 = int(m.GetLongLength 0)
     let length1 = int(m.GetLongLength 1)
     for i = 0 to length0-1 do
         for j = 0 to length1-1 do
-            printf "%d" m.[i,j]
+            match x with
+            |0 -> printf "%d" (fst m.[i,j])
+            |_ -> printf "%d" (snd m.[i,j])
         printf "\n"
 
 
@@ -25,7 +29,7 @@ let PrintMachine (m:Matrix) =       //输出一个元胞自动机状态
     let length1 = int(m.GetLongLength 1)
     for i = 0 to length0-1 do
         for j = 0 to length1-1 do
-            if m.[i,j] = 0 then printf " "
+            if (fst m.[i,j]) = 0 then printf " "
             else printf "#"
         printf "\n"
 
@@ -43,47 +47,48 @@ let GetMatrix (x,y) (m:Matrix) =    //(int,int) -> Matrix -> Matrix 从矩阵m�
 let GetMatrix3 (x,y) (m:Matrix) =   //(int,int) -> Matrix -> Matrix 从矩阵m中取以(x,y)为中心的3*3子矩阵，不足补0
     let length0 = int(m.GetLongLength 0)
     let length1 = int(m.GetLongLength 1)
-    let n = Array2D.create (length0+2) (length1+2) 0
+    let n = Array2D.create (length0+2) (length1+2) (0,0)
     for i = 0 to length0-1 do
         for j = 0 to length1-1 do
             n.[i+1,j+1] <- m.[i,j]
     n.[x..x+2,y..y+2]
+
     
-
-let GetNext (m:Matrix) =  //Matrix -> int 由一个3*3子矩阵得到中心元素的下一个状态
-    let mutable sum = 0;
-    for i = 0 to 2 do 
+let GetValue (m:Matrix) = //Matrix -> Elem 从三阶矩阵得到和
+    let mutable sum = 0
+    for i = 0 to 2 do
         for j = 0 to 2 do
-            sum <- sum + m.[i,j]
-    sum <- sum - m.[1,1]    //减去中间元素，得到周围元素之和
-    match sum with          //匹配元胞自动机状态
-    | 3 -> 1
-    | 2 -> m.[1,1]
-    | _ -> 0
+            sum <- sum + fst m.[i,j]
+    (fst m.[1,1] , sum - fst m.[1,1])
 
 
-let NextState (m:Matrix) = // Matrix -> Matrix 计算矩阵的下一个状态
+let InitMatrix (m:Matrix) = //初始化周围和信息，需重写
     let length0 = int(m.GetLongLength 0)
     let length1 = int(m.GetLongLength 1)
-    let n = Array2D.create (length0) (length1) 0
-    
+    let n = Array2D.create (length0) (length1) (0,0)
     for i = 0 to length0-1 do
         for j = 0 to length1-1 do
-            n.[i,j] <- m |> GetMatrix3 (i,j) |> GetNext
+            n.[i,j] <- m |> GetMatrix3 (i, j) |> GetValue
     n
 
 
-let CreateNum (r:Random) x y  = //Random -> int -> int -> int 随机生成布尔量
-    r.Next 2
+let GetNext ori =  //Elem -> Elem 由一个周围数之和得到中心元素的下一个状态
+    match ori with          //匹配元胞自动机状态
+    | (_, 3) -> (1, 0)
+    | (_, 2) -> ori
+    | _ -> (0, 0)
+
+
+let NextState (m:Matrix) = 
+    Array2D.map GetNext (m |> InitMatrix)
+
+
+let CreateNum (r:Random) x y  = //Random -> int -> int -> Elem 随机生成fst为布尔量的Elem
+    (r.Next 2, 0)
 
 let CreateMatrix (r:Random) (x,y) = //Random -> (int, int) -> Matrix 随机生成x*y矩阵
     Array2D.init x y (CreateNum r)
 
-
-let testMatrix = array2D [ [ 1; 0; 1; 0];
-                           [ 0; 1; 0; 1];
-                           [ 1; 1; 1; 1];
-                           [ 0; 0; 0; 0]]
 
 [<EntryPoint>]
 let main argv = 
@@ -95,6 +100,7 @@ let main argv =
     let y = readInt()
 
     let mutable tm = (CreateMatrix rand (x,y))
+
     PrintMachine tm
 
     printfn "iter for _ times?"
