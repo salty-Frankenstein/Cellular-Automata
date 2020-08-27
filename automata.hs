@@ -1,4 +1,5 @@
 import Control.Monad.State
+import System.Process
 
 type Grid = [[Int]]
 
@@ -26,10 +27,8 @@ getNext g = let i = length g; j = length $ head g in
 nextState :: State Grid Grid
 nextState = state $ \g -> (g, getNext g)
 
-
-test :: Grid
-test = let zero = take 8 $ repeat 0 in 
-    [zero] ++ map (\x->[0]++x++[0]) [[mod (x*y+x) 2 | y <- [1..6]] | x <- [1..5]] ++ [zero]
+nextStateIO :: StateT Grid IO Grid
+nextStateIO = StateT $ \g -> return (g, getNext g)
 
 printList :: Show a => [a] -> IO ()
 printList [] = return ()
@@ -37,11 +36,25 @@ printList (x:xs) = do
     print x
     printList xs
 
+run :: StateT Grid IO ()
+run = do
+    liftIO $ system "cls"
+    s <- nextStateIO
+    liftIO $ printList s
+    liftIO getLine
+    return ()
+
+initial :: Grid
+initial = let zero = take 8 $ repeat 0 in 
+    [zero] ++ map (\x->[0]++x++[0]) [[mod (x*y+x) 2 | y <- [1..6]] | x <- [1..5]] ++ [zero]
+
+bindStream :: StateT Grid IO () -> ((), Grid) -> IO ((), Grid)
+bindStream run = \(_,l) -> runStateT run l >>= bindStream run
+
+foreverDo :: StateT Grid IO () -> IO ((), Grid)
+foreverDo run = runStateT run initial >>= bindStream run
+
 main :: IO ()
 main = do
-    s <- return nextState
-    printList $ fst $ runState s test
-    s1 <- return (s >>= \_->nextState)
-    printList $ fst $ runState s1 test
-    getLine
+    foreverDo run
     return ()
