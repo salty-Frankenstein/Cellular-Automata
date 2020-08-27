@@ -1,5 +1,6 @@
 import Control.Monad.State
 import System.Process
+import System.Random
 
 type Grid = [[Int]]
 
@@ -24,9 +25,6 @@ getNext g = let i = length g; j = length $ head g in
         | x <- [0..i-1] 
     ]
 
-nextState :: State Grid Grid
-nextState = state $ \g -> (g, getNext g)
-
 nextStateIO :: StateT Grid IO Grid
 nextStateIO = StateT $ \g -> return (g, getNext g)
 
@@ -41,18 +39,31 @@ run = do
     liftIO $ system "cls"
     s <- nextStateIO
     liftIO $ printList s
-    liftIO getLine
-    return ()
 
-initial :: Grid
-initial = let zero = take 8 $ repeat 0 in 
-    [zero] ++ map (\x->[0]++x++[0]) [[mod (x*y+x) 2 | y <- [1..6]] | x <- [1..5]] ++ [zero]
+getGrid :: Int -> Int -> [Int] -> Grid
+getGrid x y l = let zero = take (y+2) $ repeat 0 in 
+    [zero] ++ map (\x->[0]++x++[0]) [ [ l!!(i*y+j) | j <- [0..y-1]] | i <- [0..x-1]] ++ [zero]
 
-bindStream :: StateT Grid IO () -> ((), Grid) -> IO ((), Grid)
+randomBool :: IO [Int]
+randomBool = do
+    gen <- newStdGen
+    return $ randomRs ((0, 1)::(Int, Int)) gen
+
+randomGrid :: Int -> Int -> IO Grid
+randomGrid x y = do
+    s <- liftM (take (x*y)) randomBool
+    return $ getGrid x y s
+
+initial :: IO Grid
+initial = randomGrid 20 20
+
+bindStream :: StateT Grid IO a -> (a, Grid) -> IO (a, Grid)
 bindStream run = \(_,l) -> runStateT run l >>= bindStream run
 
-foreverDo :: StateT Grid IO () -> IO ((), Grid)
-foreverDo run = runStateT run initial >>= bindStream run
+foreverDo :: StateT Grid IO a -> IO (a, Grid)
+foreverDo run = do
+    g <- initial
+    runStateT run g >>= bindStream run
 
 main :: IO ()
 main = do
